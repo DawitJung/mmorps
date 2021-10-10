@@ -149,9 +149,9 @@ function generateRobots() {
     const p = Math.random();
     if (p < 0.01) {
       createGeniusBot("[GeniusBot] " + postfix);
-    } else if (p < 0.2) {
+    } else if (p < 0.1) {
       createSmartBot("[SmartBot] " + postfix);
-    } else if (p < 0.6) {
+    } else if (p < 0.3) {
       createNormalBot("[NormalBot] " + postfix);
     } else {
       createDumbBot("[DumbBot] " + postfix);

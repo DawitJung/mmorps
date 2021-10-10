@@ -261,94 +261,99 @@
       };
 
       const socket = io("<%= host; %>");
+      let controllerInitiated = false;
+
+      const viewUpdaters = {
+        positions(_, positions) {
+          controllerEls.R.querySelector(".counter").innerText = positions.R;
+          controllerEls.P.querySelector(".counter").innerText = positions.P;
+          controllerEls.S.querySelector(".counter").innerText = positions.S;
+        },
+        score(prevScore, score) {
+          const scoreEl = document.querySelector("#score");
+          scoreEl.innerText = score;
+          scoreEl.classList.remove("is-decreasing");
+          scoreEl.classList.remove("is-increasing");
+          if (prevScore > score) scoreEl.classList.add("is-decreasing");
+          else if (prevScore < score) scoreEl.classList.add("is-increasing");
+        },
+        userPosition(prevPosition, position) {
+          if (controllerEls[prevPosition]) {
+            controllerEls[prevPosition].classList.remove("is-selected");
+          }
+          if (controllerEls[position]) {
+            controllerEls[position].classList.add("is-selected");
+          }
+        },
+        userName(_, name) {
+          document.querySelector("#user-name").innerText = name;
+        },
+        leaderboard(_, leaderboard) {
+          const ul = document.querySelector("#leaderboard");
+          ul.innerHTML = "";
+          for (const [i, leader] of leaderboard.entries()) {
+            const li = document.createElement("li");
+            const nameEl = document.createElement("span");
+            if (leader.id === model.id) li.classList.add("is-user");
+            nameEl.innerText = `${i + 1}. ${leader.name}`;
+            const scoreEl = document.createElement("span");
+            scoreEl.innerText = leader.score;
+            li.appendChild(nameEl);
+            li.appendChild(scoreEl);
+            ul.appendChild(li);
+          }
+        },
+        totalPeople(_, people) {
+          document.querySelector("#total-people").innerText = people;
+        },
+      };
+
+      const watchers = {};
+
+      const model = new Proxy(
+        {
+          id: null,
+          positions: null,
+          score: null,
+          leaderboard: null,
+          totalPeople: null,
+          userName: null,
+          userPosition: null,
+        },
+        {
+          set(obj, prop, value) {
+            viewUpdaters[prop] && viewUpdaters[prop](obj[prop], value);
+            watchers[prop] && watchers[prop](obj[prop], value);
+            obj[prop] = value;
+          },
+        }
+      );
 
       socket.on("connect", () => {
-        const id = socket.id;
+        model.id = socket.id;
+        !controllerInitiated && initiateController();
+        controllerInitiated = true;
+      });
 
-        const viewUpdaters = {
-          positions(_, positions) {
-            controllerEls.R.querySelector(".counter").innerText = positions.R;
-            controllerEls.P.querySelector(".counter").innerText = positions.P;
-            controllerEls.S.querySelector(".counter").innerText = positions.S;
-          },
-          score(prevScore, score) {
-            const scoreEl = document.querySelector("#score");
-            scoreEl.innerText = score;
-            scoreEl.classList.remove("is-decreasing");
-            scoreEl.classList.remove("is-increasing");
-            if (prevScore > score) scoreEl.classList.add("is-decreasing");
-            else if (prevScore < score) scoreEl.classList.add("is-increasing");
-          },
-          userPosition(prevPosition, position) {
-            if (controllerEls[prevPosition]) {
-              controllerEls[prevPosition].classList.remove("is-selected");
-            }
-            if (controllerEls[position]) {
-              controllerEls[position].classList.add("is-selected");
-            }
-          },
-          userName(_, name) {
-            document.querySelector("#user-name").innerText = name;
-          },
-          leaderboard(_, leaderboard) {
-            const ul = document.querySelector("#leaderboard");
-            ul.innerHTML = "";
-            for (const [i, leader] of leaderboard.entries()) {
-              const li = document.createElement("li");
-              const nameEl = document.createElement("span");
-              if (leader.id === id) li.classList.add("is-user");
-              nameEl.innerText = `${i + 1}. ${leader.name}`;
-              const scoreEl = document.createElement("span");
-              scoreEl.innerText = leader.score;
-              li.appendChild(nameEl);
-              li.appendChild(scoreEl);
-              ul.appendChild(li);
-            }
-          },
-          totalPeople(_, people) {
-            document.querySelector("#total-people").innerText = people;
-          },
-        };
+      socket.on("positions", (positions) => {
+        model.positions = positions;
+      });
+      socket.on("cancel", (position) => {
+        alert("The request was canceled due to too frequent requests.");
+        model.userPosition = position;
+      });
+      socket.on("name", (name) => {
+        model.userName = name;
+      });
+      socket.on("score", (score) => {
+        model.score = score;
+      });
+      socket.on("leaderboard", ({ leaderboard, total }) => {
+        model.leaderboard = leaderboard;
+        model.totalPeople = total;
+      });
 
-        const watchers = {};
-
-        const model = new Proxy(
-          {
-            positions: null,
-            score: null,
-            leaderboard: null,
-            totalPeople: null,
-            userName: null,
-            userPosition: null,
-          },
-          {
-            set(obj, prop, value) {
-              viewUpdaters[prop] && viewUpdaters[prop](obj[prop], value);
-              watchers[prop] && watchers[prop](obj[prop], value);
-              obj[prop] = value;
-            },
-          }
-        );
-
-        socket.on("positions", (positions) => {
-          model.positions = positions;
-        });
-        socket.on("cancel", (position) => {
-          console.log("server");
-          alert("The request was canceled due to too frequent requests.");
-          model.userPosition = position;
-        });
-        socket.on("name", (name) => {
-          model.userName = name;
-        });
-        socket.on("score", (score) => {
-          model.score = score;
-        });
-        socket.on("leaderboard", ({ leaderboard, total }) => {
-          model.leaderboard = leaderboard;
-          model.totalPeople = total;
-        });
-
+      function initiateController() {
         const changePosition = createChangePosition();
 
         controllerEls.R.addEventListener("click", (event) => {
@@ -363,13 +368,14 @@
           event.stopPropagation();
           changePosition("S");
         });
+
         window.addEventListener("keydown", ({ repeat, keyCode }) => {
           if (!repeat) {
             const newPosition = { 37: "R", 39: "P", 40: "S" }[keyCode];
             changePosition(newPosition);
           }
         });
-        window.addEventListener("click", () => {
+        document.querySelector("body").addEventListener("click", () => {
           changePosition(null);
         });
         document
@@ -401,7 +407,7 @@
           const name = prompt("Your name:", model.userName || undefined);
           if (name && name !== model.userName) socket.emit("name", name);
         }
-      });
+      }
     </script>
   </body>
 </html>

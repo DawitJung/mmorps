@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MMORPS</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      ul,
+      ol,
+      li {
+        list-style: none;
+      }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        color-scheme: dark;
+        background-color: black;
+        color: white;
+      }
+      h1,
+      h2,
+      h3,
+      h4,
+      h5,
+      h6 {
+        font-size: medium;
+      }
+      h1 {
+        line-height: 50px;
+        text-align: center;
+      }
+      main {
+        width: 100%;
+        max-width: 600px;
+        margin: auto;
+        height: calc(100% - 100px);
+        max-height: 1000px;
+        border-radius: 20px;
+        background-color: #282a36;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        padding: 15px;
+        position: relative;
+      }
+      #user-name-container,
+      #leaderboard-container {
+        width: 100%;
+        background-color: #000000;
+        border-radius: 20px;
+        padding: 20px;
+        position: absolute;
+      }
+      #user-name-container {
+        width: calc(100% - 20px);
+        left: 10px;
+        bottom: 10px;
+        cursor: pointer;
+      }
+      #user-name-container h2 {
+        color: darkgray;
+        margin-bottom: 5px;
+      }
+      #user-name {
+        font-weight: bold;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      #change-user-name-button {
+        background-color: transparent;
+        outline: none;
+        border: none;
+        text-decoration: underline;
+      }
+      #leaderboard-container {
+        width: calc(100% - 20px);
+        left: 10px;
+        top: 10px;
+      }
+      #leaderboard-container h2 {
+        font-size: medium;
+        color: darkgray;
+        margin-bottom: 5px;
+      }
+      #leaderboard-container #total-people {
+        font-weight: bold;
+        color: #ff79c6;
+      }
+      #leaderboard-container #total-people:empty {
+        display: none;
+      }
+      #leaderboard-container #total-people::before {
+        content: "Total: ";
+      }
+      #leaderboard li {
+        display: flex;
+      }
+      #leaderboard li.is-user {
+        color: #f1fa8c;
+      }
+      #leaderboard li {
+        margin-bottom: 5px;
+      }
+      #leaderboard li span:first-child {
+        flex: 1;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      #leaderboard li span:last-child {
+        font-family: monospace;
+        font-size: 20px;
+      }
+      #controllers {
+        display: grid;
+        row-gap: 10px;
+        column-gap: 10px;
+        transform: rotate(45deg);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      #controllers * {
+        text-align: center;
+        transition-duration: 120ms;
+      }
+      #controllers > * {
+        background-color: #000000;
+        width: 120px;
+        height: 120px;
+      }
+      #controllers > * > .inner {
+        height: 100%;
+        transform: rotate(-45deg);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+      }
+      #score-container {
+        grid-area: 1 / 1 / 2 / 2;
+      }
+      #controller-r {
+        grid-area: 2 / 1 / 3 / 2;
+      }
+      #controller-p {
+        grid-area: 1 / 2 / 2 / 3;
+      }
+      #controller-s {
+        grid-area: 2 / 2 / 3 / 3;
+      }
+      #score-container h2 {
+        font-size: 14px;
+        margin-bottom: 5px;
+      }
+      .controller {
+        cursor: pointer;
+      }
+      #score,
+      .controller .counter {
+        font-weight: bold;
+        font-size: 22px;
+        font-family: monospace;
+        transition-duration: 120ms;
+      }
+      #score.is-increasing {
+        color: #50fa7b;
+      }
+      #score.is-decreasing {
+        color: #ff5555;
+      }
+      .controller.is-selected {
+        background-color: #8be9fd !important;
+        animation-duration: 200ms;
+        animation-fill-mode: both;
+        animation-name: bouncing;
+        animation-iteration-count: infinite;
+        animation-direction: alternate-reverse;
+      }
+      .controller .hand {
+        font-size: 35px;
+      }
+      @keyframes bouncing {
+        0% {
+          transform: scale(1.05);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>MMORPS &#9994;&#9995;&#9996;</h1>
+    <main>
+      <div id="leaderboard-container">
+        <h2>Leaderboard &#127942;</h2>
+        <ul id="leaderboard"></ul>
+        <p id="total-people"></p>
+      </div>
+      <div id="controllers">
+        <div id="score-container">
+          <div class="inner">
+            <h2>SCORE</h2>
+            <p id="score">0</p>
+          </div>
+        </div>
+        <div id="controller-r" class="controller">
+          <div class="inner">
+            <p class="counter">0</p>
+            <div class="hand">&#9994;</div>
+          </div>
+        </div>
+        <div id="controller-p" class="controller">
+          <div class="inner">
+            <p class="counter">0</p>
+            <div class="hand">&#9995;</div>
+          </div>
+        </div>
+        <div id="controller-s" class="controller">
+          <div class="inner">
+            <p class="counter">0</p>
+            <div class="hand">&#9996;</div>
+          </div>
+        </div>
+      </div>
+      <div id="user-name-container">
+        <h2>Your name &#9999;&#65039;</h2>
+        <div>
+          <p id="user-name"></p>
+        </div>
+      </div>
+    </main>
+    <script
+      src="https://cdn.socket.io/4.2.0/socket.io.min.js"
+      integrity="sha384-PiBR5S00EtOj2Lto9Uu81cmoyZqR57XcOna1oAuVuIEjzj0wpqDVfD0JA9eXlRsj"
+      crossorigin="anonymous"
+    ></script>
+    <script>
+      const controllerEls = {
+        R: document.querySelector("#controller-r"),
+        P: document.querySelector("#controller-p"),
+        S: document.querySelector("#controller-s"),
+      };
+
+      const socket = io("http://192.168.0.192:5050");
+
+      socket.on("connect", () => {
+        const id = socket.id;
+
+        const viewUpdaters = {
+          positions(_, positions) {
+            controllerEls.R.querySelector(".counter").innerText = positions.R;
+            controllerEls.P.querySelector(".counter").innerText = positions.P;
+            controllerEls.S.querySelector(".counter").innerText = positions.S;
+          },
+          score(prevScore, score) {
+            const scoreEl = document.querySelector("#score");
+            scoreEl.innerText = score;
+            scoreEl.classList.remove("is-decreasing");
+            scoreEl.classList.remove("is-increasing");
+            if (prevScore > score) scoreEl.classList.add("is-decreasing");
+            else if (prevScore < score) scoreEl.classList.add("is-increasing");
+          },
+          userPosition(prevPosition, position) {
+            if (controllerEls[prevPosition]) {
+              controllerEls[prevPosition].classList.remove("is-selected");
+            }
+            if (controllerEls[position]) {
+              controllerEls[position].classList.add("is-selected");
+            }
+          },
+          userName(_, name) {
+            document.querySelector("#user-name").innerText = name;
+          },
+          leaderboard(_, leaderboard) {
+            const ul = document.querySelector("#leaderboard");
+            ul.innerHTML = "";
+            for (const [i, leader] of leaderboard.entries()) {
+              const li = document.createElement("li");
+              const nameEl = document.createElement("span");
+              if (leader.id === id) li.classList.add("is-user");
+              nameEl.innerText = `${i + 1}. ${leader.name}`;
+              const scoreEl = document.createElement("span");
+              scoreEl.innerText = leader.score;
+              li.appendChild(nameEl);
+              li.appendChild(scoreEl);
+              ul.appendChild(li);
+            }
+          },
+          totalPeople(_, people) {
+            document.querySelector("#total-people").innerText = people;
+          },
+        };
+
+        const watchers = {
+          userPosition(_, position) {
+            socket.emit("position", position);
+          },
+        };
+
+        const model = new Proxy(
+          {
+            positions: null,
+            score: null,
+            leaderboard: null,
+            totalPeople: null,
+            userName: null,
+            userPosition: null,
+          },
+          {
+            set(obj, prop, value) {
+              viewUpdaters[prop] && viewUpdaters[prop](obj[prop], value);
+              watchers[prop] && watchers[prop](obj[prop], value);
+              obj[prop] = value;
+            },
+          }
+        );
+
+        socket.on("positions", (positions) => {
+          model.positions = positions;
+        });
+
+        socket.on("name", (name) => {
+          model.userName = name;
+        });
+
+        socket.on("score", (score) => {
+          model.score = score;
+        });
+
+        socket.on("leaderboard", ({ leaderboard, total }) => {
+          model.leaderboard = leaderboard;
+          model.totalPeople = total;
+        });
+
+        controllerEls.R.addEventListener("click", () => {
+          model.userPosition = "R";
+        });
+        controllerEls.P.addEventListener("click", () => {
+          model.userPosition = "P";
+        });
+        controllerEls.S.addEventListener("click", () => {
+          model.userPosition = "S";
+        });
+        window.addEventListener("keydown", ({ repeat, keyCode }) => {
+          if (!repeat) {
+            model.userPosition = { 37: "R", 39: "P", 40: "S" }[keyCode];
+          }
+        });
+
+        document
+          .querySelector("#user-name-container")
+          .addEventListener("click", () => {
+            model.userPosition = null;
+            setTimeout(changeName);
+          });
+        function changeName() {
+          const name = prompt("Your name:", model.userName);
+          if (name && name !== model.userName) socket.emit("name", name);
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -66,6 +66,7 @@ function updateLeaderboard() {
 }
 
 function createUser(socketIoClient) {
+  const tempName = socketIoClient.id.slice(0, 6);
   const setters = {
     position(obj, position) {
       if (
@@ -101,7 +102,7 @@ function createUser(socketIoClient) {
       socketIoClient,
       id: socketIoClient.id,
       position: null,
-      name: socketIoClient.id,
+      name: tempName,
       score: 0,
       positionChangedAt: 0,
       deregister() {
@@ -119,7 +120,7 @@ function createUser(socketIoClient) {
       },
     }
   );
-  socketIoClient.emit("name", socketIoClient.id);
+  socketIoClient.emit("name", tempName);
   users.set(socketIoClient.id, newUser);
   return newUser;
 }
@@ -131,9 +132,13 @@ function createStubSocketIOClient() {
 function generateRobots() {
   while (users.size < 20) {
     const postfix = Math.random().toString(36).slice(-4);
-    // 절반의 확률로 똑똑한 로봇이 발생
-    if (Math.random() < 0.5) {
+    const p = Math.random();
+    if (p < 0.01) {
+      createGeniusBot("[GeniusBot] " + postfix);
+    } else if (p < 0.2) {
       createSmartBot("[SmartBot] " + postfix);
+    } else if (p < 0.6) {
+      createNormalBot("[NormalBot] " + postfix);
     } else {
       createDumbBot("[DumbBot] " + postfix);
     }
@@ -158,7 +163,7 @@ function createDumbBot(name) {
   }, interval);
 }
 
-function createSmartBot(name) {
+function createNormalBot(name) {
   const stubSocketIOClient = createStubSocketIOClient();
   const robot = createUser(stubSocketIOClient);
   robot.name = name;
@@ -170,6 +175,46 @@ function createSmartBot(name) {
       robot.position = newPosition;
     }
     if (Math.random() < 0.01) {
+      clearInterval(interval);
+      robot.deregister();
+    }
+  }, time);
+}
+
+function createSmartBot(name) {
+  const stubSocketIOClient = createStubSocketIOClient();
+  const robot = createUser(stubSocketIOClient);
+  robot.name = name;
+  const time = MIN_TIME_TO_CHANGE_POSITION + Math.random() * 5000;
+  const interval = setInterval(() => {
+    const scores = getScores();
+    const maxScore = Math.max(scores.R, scores.P, scores.S);
+    const newPosition =
+      scores.R === maxScore ? "R" : scores.P === maxScore ? "P" : "S";
+    if (robot.position !== newPosition) {
+      robot.position = newPosition;
+    }
+    if (Math.random() < 0.01) {
+      clearInterval(interval);
+      robot.deregister();
+    }
+  }, time);
+}
+
+function createGeniusBot(name) {
+  const stubSocketIOClient = createStubSocketIOClient();
+  const robot = createUser(stubSocketIOClient);
+  robot.name = name;
+  const time = MIN_TIME_TO_CHANGE_POSITION + 10;
+  const interval = setInterval(() => {
+    const scores = getScores();
+    const maxScore = Math.max(scores.R, scores.P, scores.S);
+    const newPosition =
+      scores.R === maxScore ? "R" : scores.P === maxScore ? "P" : "S";
+    if (robot.position !== newPosition) {
+      robot.position = newPosition;
+    }
+    if (Math.random() < 0.0005) {
       clearInterval(interval);
       robot.deregister();
     }

@@ -31,10 +31,24 @@ let round = 0;
 
 setInterval(() => {
   calcScores();
-  if (round % 10 === 0) updateLeaderboard();
+  if (round % 5 === 0) updateLeaderboard();
+  if (round % 10 === 0) aggregatePostions();
   if (round % 100 === 0) generateRobots();
   round++;
 }, 100);
+
+function aggregatePostions() {
+  const newPositions = { R: 0, P: 0, S: 0 };
+  for (const [_, user] of users) {
+    const position = user.position;
+    if (typeof newPositions[position] === "number") {
+      newPositions[position] += 1;
+    }
+  }
+  positions.R = newPositions.R;
+  positions.P = newPositions.P;
+  positions.S = newPositions.S;
+}
 
 function getScores() {
   return {

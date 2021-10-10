@@ -2,13 +2,25 @@ const app = require("express")();
 const server = require("http").createServer(app);
 const io = require("socket.io")(server, {
   cors: {
-    origin: ["http://localhost:5050", /192\.168\.0\.\d{3}/],
+    origin: [
+      "http://localhost:5050",
+      /192\.168\.0\.\d{3}/,
+      "https://mmorps.net",
+    ],
   },
 });
 
-app.get("/", (_, res) => {
-  res.sendFile(__dirname + "/index.html");
-});
+const host =
+  process.env.NODE_ENV === "development"
+    ? "http://localhost:5050"
+    : "https://mmorps.net";
+
+app
+  .set("views", __dirname + "/views")
+  .set("view engine", "ejs")
+  .get("/", (_, res) => {
+    res.render("index", { host });
+  });
 
 const positions = { R: 0, S: 0, P: 0 };
 const users = new Map();

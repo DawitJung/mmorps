@@ -5,6 +5,10 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MMORPS</title>
+    <meta
+      name="description"
+      content="Rock-paper-scissors for everyone in real time"
+    />
     <style>
       * {
         box-sizing: border-box;
@@ -253,7 +257,7 @@
         S: document.querySelector("#controller-s"),
       };
 
-      const socket = io("http://192.168.0.192:5050");
+      const socket = io("<%= host; %>");
 
       socket.on("connect", () => {
         const id = socket.id;

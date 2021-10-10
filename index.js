@@ -10,6 +10,8 @@ const io = require("socket.io")(server, {
   },
 });
 
+const MIN_TIME_TO_CHANGE_POSITION = 20;
+
 const host =
   process.env.NODE_ENV === "development"
     ? "http://localhost:5050"
@@ -30,10 +32,11 @@ let round = 0;
 setInterval(() => {
   calcScores();
   if (round % 10 === 0) updateLeaderboard();
+  if (round % 100 === 0) generateRobots();
   round++;
 }, 100);
 
-function getAddingScores() {
+function getScores() {
   return {
     R: positions.S - positions.P,
     S: positions.P - positions.R,
@@ -42,7 +45,7 @@ function getAddingScores() {
 }
 
 function calcScores() {
-  const scores = getAddingScores();
+  const scores = getScores();
   for (const [_, user] of users) {
     if (user.position) user.score += scores[user.position];
   }
@@ -62,63 +65,119 @@ function updateLeaderboard() {
   io.emit("leaderboard", { leaderboard, total: users.size });
 }
 
-class User {
-  constructor(socketIoClient) {
-    this.socketIoClient = socketIoClient;
-    this.id = socketIoClient.id;
-    this._position = null;
-    this._name = socketIoClient.id;
-    this._score = 0;
-    socketIoClient.emit("name", socketIoClient.id);
-    socketIoClient.emit("positions", positions);
-    users.set(this.id, this);
-  }
-
-  deregister() {
-    users.delete(this.id);
-    if (this._position) {
-      positions[this._position] = Math.max(0, positions[this._position] - 1);
-      io.emit("positions", positions);
-    }
-  }
-
-  get position() {
-    return this._position;
-  }
-  set position(position) {
-    if (["R", "S", "P", null].includes(position)) {
-      if (typeof positions[this._position] === "number") {
-        positions[this._position] = Math.max(0, positions[this._position] - 1);
+function createUser(socketIoClient) {
+  const setters = {
+    position(obj, position) {
+      if (
+        obj.changedAt + MIN_TIME_TO_CHANGE_POSITION > Date.now() &&
+        position !== null
+      ) {
+        socketIoClient.emit("cancel", obj.position);
+      } else if (["R", "S", "P", null].includes(position)) {
+        if (typeof positions[obj.position] === "number") {
+          positions[obj.position] = Math.max(0, positions[obj.position] - 1);
+        }
+        obj.position = position;
+        if (typeof positions[obj.position] === "number") {
+          positions[position] += 1;
+        }
+        obj.changedAt = Date.now();
+        io.emit("positions", positions);
       }
-      this._position = position;
-      if (typeof positions[this._position] === "number") {
-        positions[position] += 1;
+    },
+    score(obj, score) {
+      obj.score = Math.max(0, score);
+      socketIoClient.emit("score", obj.score);
+    },
+    name(obj, name) {
+      if (typeof name === "string" && name.length > 0 && name.length < 30) {
+        obj.name = name;
+        socketIoClient.emit("name", obj.name);
       }
-      io.emit("positions", positions);
+    },
+  };
+  const newUser = new Proxy(
+    {
+      socketIoClient,
+      id: socketIoClient.id,
+      position: null,
+      name: socketIoClient.id,
+      score: 0,
+      positionChangedAt: 0,
+      deregister() {
+        users.delete(socketIoClient.id);
+        if (this.position) {
+          positions[this.position] = Math.max(0, positions[this.position] - 1);
+          io.emit("positions", positions);
+        }
+      },
+    },
+    {
+      set(obj, prop, value) {
+        if (setters[prop]) setters[prop](obj, value);
+        else obj[prop] = value;
+      },
     }
-  }
+  );
+  socketIoClient.emit("name", socketIoClient.id);
+  users.set(socketIoClient.id, newUser);
+  return newUser;
+}
 
-  get score() {
-    return this._score;
-  }
-  set score(score) {
-    this._score = Math.max(0, score);
-    this.socketIoClient.emit("score", this._score);
-  }
+function createStubSocketIOClient() {
+  return { id: Math.random() + "", emit: () => {} };
+}
 
-  get name() {
-    return this._name;
-  }
-  set name(name) {
-    if (typeof name === "string" && name.length > 0 && name.length < 30) {
-      this._name = name;
-      this.socketIoClient.emit("name", name);
+function generateRobots() {
+  while (users.size < 20) {
+    const postfix = Math.random().toString(36).slice(-4);
+    // 절반의 확률로 똑똑한 로봇이 발생
+    if (Math.random() < 0.5) {
+      createSmartBot("[SmartBot] " + postfix);
+    } else {
+      createDumbBot("[DumbBot] " + postfix);
     }
   }
 }
 
+function createDumbBot(name) {
+  const stubSocketIOClient = createStubSocketIOClient();
+  const robot = createUser(stubSocketIOClient);
+  robot.name = name;
+  const interval = MIN_TIME_TO_CHANGE_POSITION + Math.random() * 10000;
+  setInterval(() => {
+    const randomIndex = Math.floor(Math.random() * 3);
+    const newPosition = ["R", "P", "S"][randomIndex];
+    if (robot.position !== newPosition) {
+      robot.position = newPosition;
+    }
+    if (Math.random() < 0.01) {
+      clearInterval(interval);
+      robot.deregister();
+    }
+  }, interval);
+}
+
+function createSmartBot(name) {
+  const stubSocketIOClient = createStubSocketIOClient();
+  const robot = createUser(stubSocketIOClient);
+  robot.name = name;
+  const time = MIN_TIME_TO_CHANGE_POSITION + Math.random() * 5000;
+  const interval = setInterval(() => {
+    const scores = getScores();
+    const newPosition = scores.R > 0 ? "R" : scores.P > 0 ? "P" : "S";
+    if (robot.position !== newPosition) {
+      robot.position = newPosition;
+    }
+    if (Math.random() < 0.01) {
+      clearInterval(interval);
+      robot.deregister();
+    }
+  }, time);
+}
+
 io.on("connection", (client) => {
-  const user = new User(client);
+  const user = createUser(client);
   client.on("position", (position) => {
     user.position = position;
   });
@@ -131,5 +190,6 @@ io.on("connection", (client) => {
 });
 
 server.listen(5050, () => {
+  console.log("environment:", process.env.NODE_ENV);
   console.log("start on 5050");
 });

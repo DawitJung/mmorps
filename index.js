@@ -33,7 +33,7 @@ setInterval(() => {
   calcScores();
   if (round % 5 === 0) updateLeaderboard();
   if (round % 10 === 0) aggregatePostions();
-  if (round % 100 === 0) generateRobots();
+  // if (round % 100 === 0) generateRobots();
   round++;
 }, 100);
 
